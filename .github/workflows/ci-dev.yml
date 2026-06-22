@@ -1,0 +1,44 @@
+name: CI - Development
+
+on:
+  pull_request:
+    branches:
+      - develop
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Lint HTML, CSS and Build with Parcel
+        run: |
+          npm install -g htmlhint stylelint parcel
+          htmlhint "*.html" || true
+          stylelint "*.css" || true
+          parcel build *.html --no-optimize || true
+
+      - name: Docker Login
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/pakvista:dev-latest, ${{ secrets.DOCKERHUB_USERNAME }}/pakvista:dev-${{ github.sha }}
+
+      - name: Tag Image
+        run: echo "Environment specific tags applied in build step"
+
+      - name: Push Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/pakvista:dev-latest, ${{ secrets.DOCKERHUB_USERNAME }}/pakvista:dev-${{ github.sha }}
